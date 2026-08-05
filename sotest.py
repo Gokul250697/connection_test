@@ -8,10 +8,11 @@ CLIENT_ID = "1108017050"
 
 BASE_URL = "https://api.dhan.co/v2"
 
-stock_ids = ["11787"]
+stock_ids = ["11787", "10188"]
 
 result_dict = {
-    "11787": "GOYALALUM"
+    "11787": "GOYALALUM",
+    "10188": "SHYAMCENT"
 }
 
 def place_order(stockid):
