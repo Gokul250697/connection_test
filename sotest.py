@@ -1,6 +1,6 @@
 import requests
-import uuid
 import yfinance as yf
+import traceback
 from concurrent.futures import ThreadPoolExecutor
 
 ACCESS_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwicGFydG5lcklkIjoiIiwiZXhwIjoxNzg1OTg5NDkzLCJpYXQiOjE3ODU5MDMwOTMsInRva2VuQ29uc3VtZXJUeXBlIjoiU0VMRiIsIndlYmhvb2tVcmwiOiIiLCJkaGFuQ2xpZW50SWQiOiIxMTA4MDE3MDUwIn0.sz3bAfYZxf-uNnE_eG5HC7G9qEHZ5fAzOGXVyaPz8NApi4ORkbcQWK8o-V8PPewyCdFjYK9LVJxr037OSNwtqA"
@@ -8,24 +8,41 @@ CLIENT_ID = "1108017050"
 
 BASE_URL = "https://api.dhan.co/v2"
 
-# List of stock IDs you want to process
-stock_ids = ['10300']
+stock_ids = ["10300"]
 
-result_dict = {'10300': 'RAMASTEEL'}
+result_dict = {
+    "10300": "RAMASTEEL"
+}
 
 def place_order(stockid):
     try:
         stock_name = result_dict[stockid]
-        print(f"\nProcessing {stock_name} ({stockid}) ...")
+        print(f"\nProcessing {stock_name} ({stockid})...")
 
         # Get LTP
         stock = yf.Ticker(f"{stock_name}.NS")
-        ltp = stock.history(period="1d")['Close'][-1]
 
-        # Define target, SL, and trail
-        target = round(ltp + (ltp * 0.02), 2)  # 2% target
-        sl = round(ltp - (ltp * 0.02), 2)      # 2% stop loss
-        trail = round(ltp * 0.01, 2)           # 1% trailing jump
+        hist = stock.history(period="1d")
+
+        print("\nYahoo Finance Data:")
+        print(hist)
+
+        if hist.empty:
+            print("No data received from Yahoo Finance")
+            return {stockid: "No Data"}
+
+        ltp = hist["Close"].iloc[-1]
+
+        print(f"LTP: {ltp}")
+
+        # Calculate Target / SL / Trail
+        target = round(ltp + (ltp * 0.02), 2)
+        sl = round(ltp - (ltp * 0.02), 2)
+        trail = round(ltp * 0.01, 2)
+
+        print(f"Target: {target}")
+        print(f"Stop Loss: {sl}")
+        print(f"Trailing Jump: {trail}")
 
         payload = {
             "dhanClientId": CLIENT_ID,
@@ -36,7 +53,7 @@ def place_order(stockid):
             "securityId": stockid,
             "quantity": 1,
             "price": 0,
-            #"targetPrice": target,
+            "targetPrice": target,
             "stopLossPrice": sl,
             "trailingJump": trail
         }
@@ -47,19 +64,37 @@ def place_order(stockid):
             "access-token": ACCESS_TOKEN
         }
 
-        response = requests.post(f"{BASE_URL}/super/orders", headers=headers, json=payload)
+        print("\nSending request to Dhan...")
+        print("Payload:", payload)
 
-        print(f"Order for {stock_name} placed: {response.json()}")
-        return {stock_name: response.json()}
+        response = requests.post(
+            f"{BASE_URL}/super/orders",
+            headers=headers,
+            json=payload
+        )
 
-    except Exception as e:
-        print(f"Error while processing {stockid}: {e}")
+        print("\nHTTP Status:", response.status_code)
+        print("Raw Response:")
+        print(response.text)
+
+        try:
+            print("JSON Response:")
+            print(response.json())
+            return {stock_name: response.json()}
+        except Exception:
+            print("Response is not JSON")
+            return {stock_name: response.text}
+
+    except Exception:
+        print("\n========== EXCEPTION ==========")
+        traceback.print_exc()
+        print("===============================")
         return {stockid: "Failed"}
 
-# Run in parallel threads
-with ThreadPoolExecutor(max_workers=150) as executor:
+# Execute
+with ThreadPoolExecutor(max_workers=5) as executor:
     results = list(executor.map(place_order, stock_ids))
 
 print("\nFinal Results:")
 for r in results:
-    print(r) #test
+    print(r)
