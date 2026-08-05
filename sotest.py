@@ -9,9 +9,9 @@ CLIENT_ID = "1108017050"
 BASE_URL = "https://api.dhan.co/v2"
 
 # List of stock IDs you want to process
-stock_ids = ['11787']
+stock_ids = ['10300']
 
-result_dict = {'11787': 'GOYALALUM'}
+result_dict = {'10300': 'RAMASTEEL'}
 
 def place_order(stockid):
     try:
